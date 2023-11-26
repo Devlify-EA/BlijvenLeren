@@ -1,0 +1,61 @@
+# ASP.NET Core
+# Build and test ASP.NET Core projects targeting .NET Core.
+# Add steps that run tests, create a NuGet package, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core
+
+trigger:
+- master
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  buildConfiguration: 'Release'
+
+steps:
+- task: UseDotNet@2
+  displayName: 'Use .NET Core sdk'
+  inputs:
+    packageType: 'sdk'
+    version: '6.0.x'
+    includePreviewVersions: true
+
+- task: NuGetCommand@2
+  displayName: "Dotnet Restore"
+  inputs:
+    command: 'restore'
+    restoreSolution: '**/*.sln'
+    feedsToUse: 'select'
+- task: DotNetCoreCLI@2
+  displayName: "Dotnet Build $(buildConfiguration)"
+  inputs:
+    command: 'build'
+    projects: '**/*.csproj'
+    arguments: "--configuration $(buildConfiguration)"
+    
+- task: DotNetCoreCLI@2
+  displayName: 'dotnet test'
+  inputs:
+    command: 'test'
+    arguments: '--configuration $(buildConfiguration) --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura'
+    publishTestResults: true
+    projects: '**/BL.UnitTests.csproj'
+- task: PublishCodeCoverageResults@1
+  displayName: 'Publish code coverage report'
+  inputs:
+    codeCoverageTool: 'Cobertura'
+    summaryFileLocation: '$(Agent.TempDirectory)/**/coverage.cobertura.xml'
+- task: DotNetCoreCLI@2
+  displayName: "Dotnet Publish"
+  inputs:
+    command: "publish"
+    publishWebProjects: true
+    projects: "**/*.csproj"
+    #arguments: '--configuration $(BuildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+    arguments: "-o $(Build.ArtifactStagingDirectory)"
+    zipAfterPublish: true
+    modifyOutputPath: true
+- task: PublishPipelineArtifact@1
+  inputs:
+    targetPath: "$(Build.ArtifactStagingDirectory)"
+    artifactName: "blijvenLerenApi"
